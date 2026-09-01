@@ -175,8 +175,13 @@ def main():
 
     combined = pd.concat([df_master, df_new], ignore_index=True)
     before = len(combined)
+    # Keep the row from the chronologically LATEST report_month for each
+    # project, regardless of what order files were ingested in - not
+    # just "whichever was processed last in this run".
+    combined = combined.sort_values('report_month')
     combined = combined.drop_duplicates(subset=['project_name', 'state', 'original_cost_cr'], keep='last')
-    print(f"Dropped {before - len(combined)} duplicate rows (already in master).")
+    combined = combined.sort_values('report_month').reset_index(drop=True)
+    print(f"Dropped {before - len(combined)} duplicate rows (kept the chronologically latest snapshot of each).")
 
     combined.to_csv(master_path, index=False)
     print(f"Master dataset now has {len(combined)} total project-month rows "
