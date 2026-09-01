@@ -39,15 +39,24 @@ def extract_text(pdf_path):
 
 
 def find_table_bounds(lines):
-    start = end = None
-    for i, l in enumerate(lines):
-        if "All Ongoing Projects" in l and start is None:
-            start = i
-        if start is not None and re.search(r'Total\s*\(\d+\)', l):
+    # The table title "Table 6: All Ongoing Projects" appears once in the
+    # contents list (no page-break char before it) and once at the real
+    # start of the table (preceded by a form-feed \f, i.e. a fresh page).
+    # We want the SECOND occurrence.
+    title_hits = [i for i, l in enumerate(lines) if "Table 6: All Ongoing Projects" in l]
+    if len(title_hits) < 2:
+        raise ValueError("Could not find the real start of the 'All Ongoing Projects' table "
+                          "(expected the title to appear twice - once in contents, once at the table).")
+    start = title_hits[1]
+
+    # The table ends right before the document's closing "Note:" section
+    # (a standalone line, possibly preceded by a form-feed / whitespace).
+    end = None
+    note_re = re.compile(r'^[\s\x0c]*Note:\s*$')
+    for i in range(start, len(lines)):
+        if note_re.match(lines[i]):
             end = i
             break
-    if start is None:
-        raise ValueError("Could not find 'All Ongoing Projects' table in this PDF.")
     return start, end or len(lines)
 
 
