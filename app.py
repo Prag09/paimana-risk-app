@@ -132,10 +132,12 @@ elif page == "Risk Assessment":
 
     if run:
         with st.spinner("Evaluating historical patterns · running risk model · generating explanation..."):
-            cost_score, time_score, cost_factors, time_factors = predict(
+            result = predict(
                 state, {"original_cost_cr": original_cost, "physical_progress_pct": progress,
                         "ministry": ministry, "state": proj_state}
             )
+        cost_score, time_score = result["cost_score"], result["time_score"]
+        cost_factors, time_factors = result["cost_factors"], result["time_factors"]
 
         st.write("")
         rc1, rc2 = st.columns(2)
@@ -143,6 +145,30 @@ elif page == "Risk Assessment":
             risk_card("Cost Risk", cost_score, f"Probability of exceeding {COST_THRESHOLD_PCT}% cost overrun")
         with rc2:
             risk_card("Schedule Risk", time_score, f"Probability of slipping more than {TIME_THRESHOLD_MONTHS} months")
+
+        st.write("")
+        st.markdown("**Expected outcome (continuous estimate, not just a threshold)**")
+        ec1, ec2 = st.columns(2)
+        expected_extra_cost_cr = original_cost * result["cost_expected"] / 100
+        cost_dir = "overrun" if result["cost_expected"] >= 0 else "underrun"
+        time_dir = "slip" if result["time_expected"] >= 0 else "early finish"
+        with ec1:
+            st.metric(
+                f"Expected cost {cost_dir}",
+                f"{abs(result['cost_expected']):.1f}%  (₹{abs(expected_extra_cost_cr):.1f} Cr)",
+            )
+            st.caption(
+                f"90% confidence range: {result['cost_low']:.1f}% to {result['cost_high']:.1f}% of original cost "
+                f"(₹{original_cost*result['cost_low']/100:+.1f} Cr to ₹{original_cost*result['cost_high']/100:+.1f} Cr vs. budget)"
+            )
+        with ec2:
+            st.metric(f"Expected schedule {time_dir}", f"{abs(result['time_expected']):.1f} months")
+            st.caption(f"90% confidence range: {result['time_low']:+.1f} to {result['time_high']:+.1f} months vs. target date")
+        st.caption(
+            f"⚠️ Intervals are wide because they're calibrated honestly on a modest real dataset "
+            f"(conformal prediction, {state['cost_n_calib']} held-out calibration rows) rather than assumed — "
+            f"a narrow interval here would be the less trustworthy answer, not the better one."
+        )
 
         st.write("")
         g1, g2 = st.columns(2)

@@ -6,12 +6,13 @@ import numpy as np
 import streamlit as st
 import xgboost as xgb
 import shap
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
 
 CAT_FEATURES = ["ministry", "state"]
 NUM_FEATURES = ["original_cost_cr", "physical_progress_pct"]
 COST_THRESHOLD_PCT = 10
 TIME_THRESHOLD_MONTHS = 3
+CONFIDENCE_LEVEL = 0.90  # for conformal prediction intervals
 
 
 def parse_my(series):
@@ -54,8 +55,35 @@ def load_and_train():
             cv = np.array([np.nan])
         return m, cv
 
+    def train_regressor_with_conformal(y, confidence=CONFIDENCE_LEVEL):
+        """Split conformal prediction: train the point-predictor on a training
+        slice only, then measure real error on a held-out calibration slice.
+        The resulting interval width is backed by that measured error, not an
+        assumption - valid even with a modest dataset, unlike quantile
+        regression which needs more data per quantile to avoid crossing."""
+        X_train, X_calib, y_train, y_calib = train_test_split(
+            X, y, test_size=0.25, random_state=42
+        )
+        m = xgb.XGBRegressor(
+            n_estimators=80, max_depth=3, learning_rate=0.08,
+            subsample=0.8, reg_lambda=2.0, random_state=42,
+        )
+        m.fit(X_train, y_train)
+
+        calib_preds = m.predict(X_calib)
+        residuals = np.abs(y_calib.values - calib_preds)
+        n = len(residuals)
+        # standard split-conformal quantile correction (Vovk et al.)
+        q_level = min(1.0, np.ceil((n + 1) * confidence) / n)
+        interval_halfwidth = float(np.quantile(residuals, q_level)) if n > 0 else float("nan")
+
+        return m, interval_halfwidth, n
+
     cost_model, cost_cv = train_model(df["cost_at_risk"])
     time_model, time_cv = train_model(df["time_at_risk"])
+
+    cost_regressor, cost_interval_hw, cost_n_calib = train_regressor_with_conformal(df["cost_overrun_pct"])
+    time_regressor, time_interval_hw, time_n_calib = train_regressor_with_conformal(df["time_overrun_months"])
 
     cost_explainer = shap.TreeExplainer(cost_model)
     time_explainer = shap.TreeExplainer(time_model)
@@ -64,13 +92,15 @@ def load_and_train():
         "df": df, "X_cols": X, "rcf_baseline": rcf_baseline,
         "cost_model": cost_model, "cost_cv": cost_cv, "cost_explainer": cost_explainer,
         "time_model": time_model, "time_cv": time_cv, "time_explainer": time_explainer,
+        "cost_regressor": cost_regressor, "cost_interval_hw": cost_interval_hw, "cost_n_calib": cost_n_calib,
+        "time_regressor": time_regressor, "time_interval_hw": time_interval_hw, "time_n_calib": time_n_calib,
     }
 
 
 def predict(state_dict, project_dict):
     """project_dict: {original_cost_cr, physical_progress_pct, ministry, state}
-    Returns (cost_score, time_score, cost_factors, time_factors) where *_factors
-    is a pandas Series of grouped, human-labeled SHAP contributions."""
+    Returns a dict with classification risk scores, SHAP factors, AND continuous
+    expected-value predictions with conformal confidence intervals."""
     row = pd.DataFrame([project_dict])
     row_encoded = pd.get_dummies(row, columns=CAT_FEATURES).reindex(
         columns=state_dict["X_cols"].columns, fill_value=0
@@ -78,6 +108,11 @@ def predict(state_dict, project_dict):
 
     cost_score = float(state_dict["cost_model"].predict_proba(row_encoded)[0][1])
     time_score = float(state_dict["time_model"].predict_proba(row_encoded)[0][1])
+
+    cost_expected = float(state_dict["cost_regressor"].predict(row_encoded)[0])
+    time_expected = float(state_dict["time_regressor"].predict(row_encoded)[0])
+    cost_hw = state_dict["cost_interval_hw"]
+    time_hw = state_dict["time_interval_hw"]
 
     def grouped_shap(explainer):
         shap_vals = explainer.shap_values(row_encoded)[0]
@@ -97,4 +132,12 @@ def predict(state_dict, project_dict):
         }
         return pd.Series({friendly.get(k, k): v for k, v in grouped.items()})
 
-    return cost_score, time_score, grouped_shap(state_dict["cost_explainer"]), grouped_shap(state_dict["time_explainer"])
+    return {
+        "cost_score": cost_score, "time_score": time_score,
+        "cost_factors": grouped_shap(state_dict["cost_explainer"]),
+        "time_factors": grouped_shap(state_dict["time_explainer"]),
+        "cost_expected": cost_expected,
+        "cost_low": cost_expected - cost_hw, "cost_high": cost_expected + cost_hw,
+        "time_expected": time_expected,
+        "time_low": time_expected - time_hw, "time_high": time_expected + time_hw,
+    }

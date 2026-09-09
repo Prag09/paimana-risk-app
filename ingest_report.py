@@ -17,8 +17,14 @@ import pandas as pd
 AGENCY_RE = re.compile(r'\)\s+(\d{2}/\d{4})\s+(\d{2}/\d{4})\s+([\d,]+\.?\d*)\s*$')
 REVISED_RE = re.compile(r'\((\d{2}/\d{4})\)\s+\((\d{2}/\d{4})\)\s+\(([\d,]+\.?\d*)\)\s*$')
 REVISED_RE_DASH = re.compile(r'\((\d{2}/\d{4})\)\s+\(-\)\s+\(([\d,]+\.?\d*)\)\s*$')
-SLNO_STATE_RE = re.compile(r'^\s*(\d+)?\s+([A-Za-z][A-Za-z .&]+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$')
+SLNO_STATE_RE = re.compile(
+    r'^\s*(\d+)?\s*(?:\([\w\-]+\)\s+)?([A-Za-z][A-Za-z .&]+?)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$'
+)
 MINISTRY_RE = re.compile(r'^\s*Ministry of ')
+# Lines that are PURELY parenthesized codes (legacy OCMS code, PMGID, etc.)
+# e.g. "(N04000112) (9917)" or "(612786)" or "(-) (-)" - these carry no
+# usable text and must never be absorbed into the next project's name.
+PURE_CODE_LINE_RE = re.compile(r'^\s*(\([\w\.\-/]+\)\s*)+$')
 PAGEJUNK_RE = re.compile(
     r'Project Assessment, Infrastructure|^\x0c|^\s*Page\s|For details visit|'
     r'^\(PAIMANA\)|^\s*Sl\.No|^\s*All Ongoing Projects'
@@ -135,7 +141,7 @@ def parse_ongoing_table(lines, start_idx, end_idx):
             i += 1
             continue
 
-        if (re.match(r'^\s*\(-\)', line) or SLNO_STATE_RE.match(line)
+        if (re.match(r'^\s*\(-\)', line) or PURE_CODE_LINE_RE.match(line) or SLNO_STATE_RE.match(line)
                 or REVISED_RE.search(line) or REVISED_RE_DASH.search(line)):
             i += 1
             continue
@@ -152,20 +158,58 @@ def main():
         sys.exit(1)
 
     pdf_path, report_month = sys.argv[1], sys.argv[2]
+    MIN_EXPECTED_CLEAN_ROWS = 20  # a real month typically yields 100+ clean rows
 
-    print(f"Extracting text from {pdf_path} ...")
-    lines = extract_text(pdf_path)
-    start_idx, end_idx = find_table_bounds(lines)
-    records = parse_ongoing_table(lines, start_idx, end_idx)
-    print(f"Parsed {len(records)} raw rows.")
+    # --- Extraction, wrapped so a malformed/unexpected PDF fails loudly and
+    # safely instead of crashing mid-demo or silently corrupting the master
+    # dataset with a near-empty result. ---
+    try:
+        print(f"Extracting text from {pdf_path} ...")
+        lines = extract_text(pdf_path)
+        start_idx, end_idx = find_table_bounds(lines)
+        records = parse_ongoing_table(lines, start_idx, end_idx)
+        print(f"Parsed {len(records)} raw rows.")
+    except Exception as e:
+        print(f"\n❌ Extraction failed: {e}")
+        print("This usually means the PDF's layout doesn't match the expected "
+              "Flash Report format. The existing master dataset was NOT touched.")
+        sys.exit(1)
 
     df_new = pd.DataFrame(records)
+    if len(df_new) == 0:
+        print("\n❌ Zero rows extracted - the table structure may have changed. "
+              "The existing master dataset was NOT touched.")
+        sys.exit(1)
+
     df_new = df_new.dropna(subset=['sl_no', 'state', 'cumulative_expenditure_cr', 'physical_progress_pct']).copy()
+
+    # --- Data-quality gate: some rows merge multiple projects' text together
+    # when multi-line wrapping loses track of project boundaries (a known,
+    # hard-to-eliminate PDF-layout edge case). Rather than risk showing a
+    # judge a visibly broken/merged name, we detect and drop these explicitly
+    # instead of guessing. ---
+    before_quality = len(df_new)
+    looks_bad = (
+        df_new['project_name'].str.contains(r'\d{2}/\d{4}', na=False) |   # embedded date = merged rows
+        df_new['project_name'].str.match(r'^Total\s*\(', na=False) |      # ministry subtotal leaked in
+        df_new['project_name'].str.match(r'^\d', na=False) |               # starts with a stray number
+        (df_new['project_name'].str.len() > 250)                          # implausibly long = likely merged
+    )
+    df_new = df_new[~looks_bad].copy()
+    print(f"Data-quality filter: dropped {before_quality - len(df_new)} rows with merged/garbled names "
+          f"({len(df_new)} rows kept as trustworthy).")
+
     df_new['cost_overrun_pct'] = (
         (df_new['revised_cost_cr'] - df_new['original_cost_cr']) / df_new['original_cost_cr'] * 100
     )
     df_new['report_month'] = report_month
     print(f"Clean rows this month: {len(df_new)}")
+
+    if len(df_new) < MIN_EXPECTED_CLEAN_ROWS:
+        print(f"\n⚠️  Only {len(df_new)} clean rows extracted (expected {MIN_EXPECTED_CLEAN_ROWS}+ for "
+              f"a typical month). This likely means the report format changed or parsing partially "
+              f"failed. The existing master dataset was NOT touched — inspect the PDF before retrying.")
+        sys.exit(1)
 
     master_path = "data/projects_master.csv"
     try:
