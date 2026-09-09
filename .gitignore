@@ -1,0 +1,8 @@
+# Never commit real secrets
+.streamlit/secrets.toml
+
+# Python cruft
+__pycache__/
+*.pyc
+.venv/
+venv/
