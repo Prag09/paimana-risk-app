@@ -5,6 +5,8 @@ import streamlit as st
 PAGES = [
     "Overview",
     "Risk Assessment",
+    "Early Warning",
+    "Ask PAIMANA",
     "Search Projects",
     "Regional Intelligence",
     "Trends",

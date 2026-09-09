@@ -7,12 +7,14 @@ import streamlit as st
 import xgboost as xgb
 import shap
 from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.linear_model import LogisticRegression
 
 CAT_FEATURES = ["ministry", "state"]
 NUM_FEATURES = ["original_cost_cr", "physical_progress_pct"]
 COST_THRESHOLD_PCT = 10
 TIME_THRESHOLD_MONTHS = 3
 CONFIDENCE_LEVEL = 0.90  # for conformal prediction intervals
+ONGOING_PROGRESS_CUTOFF = 100  # projects below this are still "live" -> early-warning candidates
 
 
 def parse_my(series):
@@ -82,11 +84,32 @@ def load_and_train():
     cost_model, cost_cv = train_model(df["cost_at_risk"])
     time_model, time_cv = train_model(df["time_at_risk"])
 
+    def train_baseline(y):
+        # Plain logistic regression on identical features/folds - the honest
+        # answer to "does the fancier model actually buy us anything over
+        # conventional statistics?", which the PS explicitly asks teams to check.
+        b = LogisticRegression(max_iter=1000)
+        try:
+            cv = cross_val_score(b, X, y, cv=5, scoring="roc_auc")
+        except ValueError:
+            cv = np.array([np.nan])
+        b.fit(X, y)
+        return b, cv
+
+    _, cost_stat_cv = train_baseline(df["cost_at_risk"])
+    _, time_stat_cv = train_baseline(df["time_at_risk"])
+
     cost_regressor, cost_interval_hw, cost_n_calib = train_regressor_with_conformal(df["cost_overrun_pct"])
     time_regressor, time_interval_hw, time_n_calib = train_regressor_with_conformal(df["time_overrun_months"])
 
     cost_explainer = shap.TreeExplainer(cost_model)
     time_explainer = shap.TreeExplainer(time_model)
+
+    # Score every row once, at load time, so the Early Warning page doesn't
+    # retrain or re-score per view - it just filters/sorts a precomputed column.
+    df["cost_risk_score"] = cost_model.predict_proba(X)[:, 1]
+    df["time_risk_score"] = time_model.predict_proba(X)[:, 1]
+    df["overall_risk_score"] = df[["cost_risk_score", "time_risk_score"]].max(axis=1)
 
     return {
         "df": df, "X_cols": X, "rcf_baseline": rcf_baseline,
@@ -94,6 +117,7 @@ def load_and_train():
         "time_model": time_model, "time_cv": time_cv, "time_explainer": time_explainer,
         "cost_regressor": cost_regressor, "cost_interval_hw": cost_interval_hw, "cost_n_calib": cost_n_calib,
         "time_regressor": time_regressor, "time_interval_hw": time_interval_hw, "time_n_calib": time_n_calib,
+        "cost_stat_cv": cost_stat_cv, "time_stat_cv": time_stat_cv,
     }
 
 
