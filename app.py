@@ -57,9 +57,13 @@ st.markdown(f"""
 if page == "Overview":
     high_risk_pct = (df["cost_overrun_pct"] > COST_THRESHOLD_PCT).mean() * 100
     total_value = df["original_cost_cr"].sum()
+    # "Offshore" and "PAN India" are real values in the data but aren't actual
+    # states/UTs - excluded here so the KPI reflects genuine geographic coverage.
+    NON_STATE_LABELS = {"Offshore", "PAN India"}
+    real_states_covered = df.loc[~df["state"].isin(NON_STATE_LABELS), "state"].nunique()
     kpi_row([
         ("Projects Analysed", f"{len(df):,}"),
-        ("States Covered", f"{df['state'].nunique()}"),
+        ("States Covered", f"{real_states_covered}"),
         ("Portfolio Value", f"₹{total_value/1000:,.1f}k Cr"),
         ("High Risk Projects", f"{high_risk_pct:.0f}%"),
     ])
