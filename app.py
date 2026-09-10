@@ -281,13 +281,15 @@ elif page == "Early Warning":
                 risk_level=flagged["overall_risk_score"].apply(_risk_level_text),
                 cost_risk_pct=(flagged["cost_risk_score"] * 100).round(1),
                 time_risk_pct=(flagged["time_risk_score"] * 100).round(1),
+                overall_risk_pct=(flagged["overall_risk_score"] * 100).round(1),
             )
             styled_dataframe(
                 flagged_display[["project_name", "ministry", "state", "physical_progress_pct",
-                                  "cost_risk_pct", "time_risk_pct", "risk_level"]],
+                                  "cost_risk_pct", "time_risk_pct", "overall_risk_pct", "risk_level"]],
                 rename={"project_name": "Project", "ministry": "Ministry", "state": "State",
                         "physical_progress_pct": "Progress %", "cost_risk_pct": "Cost Risk %",
-                        "time_risk_pct": "Schedule Risk %", "risk_level": "Risk Level"},
+                        "time_risk_pct": "Schedule Risk %", "overall_risk_pct": "Overall Risk %",
+                        "risk_level": "Risk Level"},
             )
         else:
             empty_state("No ongoing projects meet this risk threshold — try lowering it.")
