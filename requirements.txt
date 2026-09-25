@@ -5,4 +5,4 @@ xgboost
 shap
 plotly
 streamlit
-google-genai
+anthropic

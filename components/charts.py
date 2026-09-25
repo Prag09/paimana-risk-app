@@ -1,8 +1,157 @@
 """Themed Plotly chart builders for the PAIMANA app."""
 
+import hashlib
+import json
+import random
+
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 from components.styles import PALETTE, style_plotly
+
+INDIA_GEOJSON_PATH = "data/india_states.geojson"
+NON_STATE_LABELS = {"Offshore", "PAN India"}
+
+# The bundled GeoJSON (a common open-source India states dataset) draws Jammu &
+# Kashmir / Ladakh along the Line of Control rather than India's officially
+# claimed boundary - true of essentially all freely-republishable India
+# boundary data, since Survey of India's exact mandated boundary is not open
+# data. INDIA_MAP_DISCLAIMER below is shown under the map, matching standard
+# practice for Indian apps/dashboards using third-party map data.
+INDIA_MAP_DISCLAIMER = ("Map boundaries are indicative, sourced from open GIS data, and do not "
+                         "necessarily represent authentic international boundaries.")
+
+
+def _largest_ring(geom):
+    rings = geom["coordinates"] if geom["type"] == "Polygon" else [p[0] for p in geom["coordinates"]]
+    return max(rings, key=len)
+
+
+def _point_in_ring(lon, lat, ring):
+    inside = False
+    n = len(ring)
+    j = n - 1
+    for i in range(n):
+        xi, yi = ring[i]
+        xj, yj = ring[j]
+        if (yi > lat) != (yj > lat):
+            x_at_lat = (xj - xi) * (lat - yi) / (yj - yi) + xi
+            if lon < x_at_lat:
+                inside = not inside
+        j = i
+    return inside
+
+
+@st.cache_data
+def load_india_geojson():
+    with open(INDIA_GEOJSON_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+@st.cache_data
+def all_india_state_names(_geojson=None):
+    geojson = _geojson or load_india_geojson()
+    return [feat["properties"]["ST_NM"] for feat in geojson["features"]]
+
+
+@st.cache_data
+def state_shapes(_geojson=None):
+    """Per-state: a simplified ring for point-containment tests, its bounding box,
+    and a centroid fallback - all derived from the geojson geometry."""
+    geojson = _geojson or load_india_geojson()
+    shapes = {}
+    for feat in geojson["features"]:
+        name = feat["properties"]["ST_NM"]
+        ring = _largest_ring(feat["geometry"])
+        simplified = ring[::max(1, len(ring) // 150)]
+        lons = [pt[0] for pt in ring]
+        lats = [pt[1] for pt in ring]
+        shapes[name] = {
+            "ring": simplified,
+            "bbox": (min(lons), max(lons), min(lats), max(lats)),
+            "centroid": (sum(lats) / len(lats), sum(lons) / len(lons)),
+        }
+    return shapes
+
+
+def _place_point(shape, seed_key):
+    minlon, maxlon, minlat, maxlat = shape["bbox"]
+    seed = int(hashlib.md5(seed_key.encode()).hexdigest(), 16) % (2**32)
+    rng = random.Random(seed)
+    for _ in range(12):
+        lon = rng.uniform(minlon, maxlon)
+        lat = rng.uniform(minlat, maxlat)
+        if _point_in_ring(lon, lat, shape["ring"]):
+            return lat, lon
+    return shape["centroid"]
+
+
+@st.cache_data
+def india_risk_map(df, cost_threshold_pct=10):
+    """Choropleth of avg cost overrun by state, with individual ongoing projects
+    scattered within their actual state boundary (point-in-polygon sampled) so
+    judges can see *where* risk sits, not just the aggregate."""
+    geojson = load_india_geojson()
+    shapes = state_shapes(geojson)
+    all_states = all_india_state_names(geojson)
+
+    scoped = df[~df["state"].isin(NON_STATE_LABELS) & df["state"].isin(shapes.keys())]
+    state_summary = scoped.groupby("state", as_index=False).agg(
+        projects=("project_name", "count"),
+        avg_overrun=("cost_overrun_pct", "mean"),
+    ).set_index("state").reindex(all_states)
+
+    fig = go.Figure()
+    fig.add_trace(go.Choropleth(
+        geojson=geojson,
+        locations=state_summary.index,
+        z=state_summary["avg_overrun"],
+        featureidkey="properties.ST_NM",
+        colorscale=[[0, PALETTE["success"]], [0.5, PALETTE["warning"]], [1, PALETTE["danger"]]],
+        marker_line_color="rgba(255,255,255,0.35)",
+        marker_line_width=0.8,
+        colorbar=dict(
+            title=dict(text="Avg overrun %", font=dict(color=PALETTE["muted"], size=11)),
+            tickfont=dict(color=PALETTE["muted"], size=10),
+            len=0.65, thickness=14,
+        ),
+        customdata=state_summary["projects"].fillna(0),
+        hovertemplate="<b>%{location}</b><br>Avg cost overrun: %{z:.1f}%<br>Projects: %{customdata}<extra></extra>",
+    ))
+
+    lats, lons, colors, hover = [], [], [], []
+    for _, row in scoped.iterrows():
+        lat, lon = _place_point(
+            shapes[row["state"]],
+            f"{row['state']}|{row.get('project_name', '')}|{row.get('report_month', '')}",
+        )
+        lats.append(lat)
+        lons.append(lon)
+        overrun = row["cost_overrun_pct"]
+        colors.append(PALETTE["danger"] if overrun > cost_threshold_pct else
+                       (PALETTE["warning"] if overrun > 5 else PALETTE["success"]))
+        hover.append(f"{row['project_name']}<br>{row['state']} · {overrun:.1f}% overrun")
+
+    fig.add_trace(go.Scattergeo(
+        lat=lats, lon=lons, mode="markers",
+        marker=dict(size=5, color=colors, opacity=0.85, line=dict(width=0.5, color="rgba(0,0,0,0.4)")),
+        text=hover, hovertemplate="%{text}<extra></extra>",
+        showlegend=False,
+    ))
+
+    fig.update_geos(
+        scope="asia", fitbounds="locations", visible=False,
+        bgcolor="rgba(0,0,0,0)",
+        landcolor=PALETTE["surface2"],
+        subunitcolor="rgba(255,255,255,0.10)",
+        showcountries=False,
+    )
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=0, r=0, t=10, b=0), height=560,
+        font=dict(color=PALETTE["text"]),
+    )
+    return fig
 
 
 def risk_distribution_donut(low, moderate, high):

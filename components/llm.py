@@ -1,4 +1,4 @@
-"""Gemini-powered Q&A / plain-language explanation layer.
+"""Claude-powered Q&A / plain-language explanation layer.
 
 Key lookup order: environment variable -> .streamlit/secrets.toml -> none.
 Deliberately NO visible sidebar input field (per product decision) - the key
@@ -10,23 +10,32 @@ import os
 import streamlit as st
 
 try:
-    from google import genai
-    from google.genai import types as genai_types
-    GEMINI_AVAILABLE = True
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
 except ImportError:
-    GEMINI_AVAILABLE = False
+    ANTHROPIC_AVAILABLE = False
 
-LLM_MODEL = "gemini-3.8-flash"  # verify current model names at ai.google.dev/gemini-api/docs/models
+# GEMINI_AVAILABLE kept as an alias so any lingering imports don't break;
+# this app now runs entirely on the Claude API.
+GEMINI_AVAILABLE = ANTHROPIC_AVAILABLE
+
+LLM_MODEL = "claude-sonnet-5"  # used for the quick inline "explain in plain language" buttons
+LLM_MODEL_DEEP = "claude-opus-5-5"  # used for Ask PAIMANA, where deeper reasoning is worth the latency
+
 ONGOING_PROGRESS_CUTOFF = 100
 
 
-def get_gemini_key():
-    if os.environ.get("GEMINI_API_KEY"):
-        return os.environ["GEMINI_API_KEY"]
+def get_anthropic_key():
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return os.environ["ANTHROPIC_API_KEY"]
     try:
-        return st.secrets.get("GEMINI_API_KEY", "")
+        return st.secrets.get("ANTHROPIC_API_KEY", "")
     except Exception:
         return ""
+
+
+# Kept as an alias - app.py calls get_gemini_key() in a few places.
+get_gemini_key = get_anthropic_key
 
 
 def build_context_summary(df):
@@ -63,15 +72,15 @@ def build_context_summary(df):
     return "\n".join(lines)
 
 
-def call_llm(prompt, context=""):
-    api_key = get_gemini_key()
-    if not GEMINI_AVAILABLE:
-        return "The `google-genai` package isn't installed. Add `google-genai` to requirements.txt and redeploy."
+def call_llm(prompt, context="", model=None):
+    api_key = get_anthropic_key()
+    if not ANTHROPIC_AVAILABLE:
+        return "The `anthropic` package isn't installed. Add `anthropic` to requirements.txt and redeploy."
     if not api_key:
-        return ("No Gemini API key configured. Add `GEMINI_API_KEY` to `.streamlit/secrets.toml` "
+        return ("No Claude API key configured. Add `ANTHROPIC_API_KEY` to `.streamlit/secrets.toml` "
                  "(local + Streamlit Cloud 'Secrets' settings) or as an environment variable.")
     try:
-        client = genai.Client(api_key=api_key)
+        client = anthropic.Anthropic(api_key=api_key)
         system_prompt = (
             "You are a project-monitoring analyst assistant for India's PAIMANA "
             "infrastructure project database (MoSPI). Answer using only the summary "
@@ -80,11 +89,18 @@ def call_llm(prompt, context=""):
             "say plainly when something isn't covered by the summary rather than "
             "guessing.\n\n" + context
         )
-        response = client.models.generate_content(
-            model=LLM_MODEL,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(system_instruction=system_prompt),
+        response = client.messages.create(
+            model=model or LLM_MODEL,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": prompt}],
         )
-        return response.text
-    except Exception as e:
-        return f"LLM call failed: {e}"
+        return next((b.text for b in response.content if b.type == "text"), "")
+    except anthropic.AuthenticationError:
+        return "Claude API call failed: invalid API key."
+    except anthropic.RateLimitError:
+        return "Claude API call failed: rate limited, please try again shortly."
+    except anthropic.APIStatusError as e:
+        return f"Claude API call failed: {e.message}"
+    except Exception:
+        return "The AI explanation is temporarily unavailable — the risk analysis above is unaffected."

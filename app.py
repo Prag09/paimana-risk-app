@@ -16,11 +16,11 @@ from components.cards import (
 )
 from components.charts import (
     risk_distribution_donut, cost_overrun_scatter, time_overrun_scatter,
-    ministry_box, region_bar, seasonal_bar, histogram,
+    ministry_box, region_bar, seasonal_bar, histogram, india_risk_map, INDIA_MAP_DISCLAIMER,
 )
 from components.navigation import render_sidebar
 from components.data_model import load_and_train, predict, parse_my, COST_THRESHOLD_PCT, TIME_THRESHOLD_MONTHS
-from components.llm import call_llm, build_context_summary, get_gemini_key, GEMINI_AVAILABLE, ONGOING_PROGRESS_CUTOFF
+from components.llm import call_llm, build_context_summary, get_gemini_key, GEMINI_AVAILABLE, ONGOING_PROGRESS_CUTOFF, LLM_MODEL_DEEP
 
 st.set_page_config(page_title="PAIMANA — Infrastructure Risk Intelligence", layout="wide", page_icon="🛰️")
 inject_global_css()
@@ -206,7 +206,7 @@ elif page == "Risk Assessment":
                         f"Key model drivers: {drivers_text}. Write a 3-4 sentence plain-language brief for a "
                         "project monitoring officer, and one concrete suggested next step."
                     )
-                    with st.spinner("Asking Gemini..."):
+                    with st.spinner("Asking Claude..."):
                         st.info(call_llm(prompt, build_context_summary(full_df)))
 
         with st.container(border=True):
@@ -341,7 +341,7 @@ elif page == "Early Warning":
                         "Write a 3-4 sentence plain-language brief for a project monitoring officer explaining the "
                         "risk, and one concrete suggested intervention."
                     )
-                    with st.spinner("Asking Gemini..."):
+                    with st.spinner("Asking Claude..."):
                         st.info(call_llm(prompt, build_context_summary(full_df)))
 
 
@@ -374,8 +374,8 @@ elif page == "Ask PAIMANA":
                 st.write(f"**Question:** {user_q}")
 
             if st.button("Ask", type="primary") and user_q:
-                with st.spinner("Asking Gemini..."):
-                    answer = call_llm(user_q, build_context_summary(full_df))
+                with st.spinner("Asking Claude..."):
+                    answer = call_llm(user_q, build_context_summary(full_df), model=LLM_MODEL_DEEP)
                 st.markdown(answer)
 
 
@@ -449,7 +449,14 @@ elif page == "Regional Intelligence":
     st.write("")
 
     with st.container(border=True):
-        section_header("Risk Exposure by Region", "Average cost overrun across all states")
+        section_header("Risk Map of India", "State shading = average cost overrun · dots = individual projects, "
+                       "clustered near each state and colored by that project's own overrun tier")
+        st.plotly_chart(india_risk_map(df, COST_THRESHOLD_PCT), width='stretch', config={"displayModeBar": False})
+        st.caption("Dot positions are sampled within the state boundary for readability — they are not exact project coordinates.")
+        st.caption(f"⚠️ {INDIA_MAP_DISCLAIMER}")
+
+    with st.container(border=True):
+        section_header("Risk Exposure by Region", "Average cost overrun across all states, ranked")
         st.plotly_chart(region_bar(state_summary.sort_values("avg_overrun", ascending=False),
                                     "avg_overrun", "Avg cost overrun %"),
                          width='stretch', config={"displayModeBar": False})

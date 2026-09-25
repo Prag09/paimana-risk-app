@@ -14,13 +14,28 @@ PAGES = [
     "Methodology",
 ]
 
+PAGE_ICONS = {
+    "Overview": "📊",
+    "Risk Assessment": "🎯",
+    "Early Warning": "⚠️",
+    "Ask PAIMANA": "💬",
+    "Search Projects": "🔍",
+    "Regional Intelligence": "🌍",
+    "Trends": "📈",
+    "Add Project": "➕",
+    "Methodology": "📖",
+}
+
 
 def render_sidebar(n_projects, n_months):
     with st.sidebar:
         st.markdown('<div class="pm-nav-brand">PAIMANA</div>', unsafe_allow_html=True)
         st.markdown('<div class="pm-nav-brand-sub">Infrastructure Risk Intelligence</div>', unsafe_allow_html=True)
 
-        choice = st.radio("Navigation", PAGES, label_visibility="collapsed")
+        choice = st.radio(
+            "Navigation", PAGES, label_visibility="collapsed",
+            format_func=lambda p: f"{PAGE_ICONS.get(p, '')}  {p}",
+        )
 
         st.markdown(f"""
         <div class="pm-sidebar-footer">

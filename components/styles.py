@@ -18,7 +18,10 @@ PALETTE = {
 def inject_global_css():
     st.markdown(f"""
     <style>
-    .stApp {{ background: {PALETTE['bg']}; }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    .stApp {{ background: {PALETTE['bg']}; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
+    code, pre, kbd, samp {{ font-family: 'SFMono-Regular', Consolas, monospace; }}
     .block-container {{ max-width: 1400px; padding-top: 1.5rem; padding-bottom: 4rem; }}
 
     /* Hide default streamlit chrome that breaks the premium feel */
@@ -26,6 +29,17 @@ def inject_global_css():
     footer {{visibility: hidden;}}
 
     h1, h2, h3, h4, p, span, div {{ color: {PALETTE['text']}; }}
+
+    /* ---- Scrollbar ---- */
+    ::-webkit-scrollbar {{ width: 10px; height: 10px; }}
+    ::-webkit-scrollbar-track {{ background: {PALETTE['bg']}; }}
+    ::-webkit-scrollbar-thumb {{ background: {PALETTE['surface2']}; border-radius: 10px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: {PALETTE['accent']}88; }}
+
+    /* ---- Focus visibility (accessibility) ---- */
+    button:focus-visible, [role="radiogroup"] label:focus-within {{
+        outline: 2px solid {PALETTE['accent']}; outline-offset: 2px;
+    }}
 
     /* ---- Hero ---- */
     .pm-hero {{
@@ -35,7 +49,10 @@ def inject_global_css():
         padding: 32px 36px;
         margin-bottom: 24px;
         display: flex; justify-content: space-between; align-items: flex-start;
+        flex-wrap: wrap; gap: 12px;
+        animation: pm-fadein 0.4s ease;
     }}
+    @keyframes pm-fadein {{ from {{ opacity: 0; transform: translateY(-4px); }} to {{ opacity: 1; transform: translateY(0); }} }}
     .pm-hero-title {{ font-size: 2.1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }}
     .pm-hero-sub {{ color: {PALETTE['muted']}; font-size: 1rem; margin: 6px 0 0 0; }}
     .pm-hero-tag {{ color: {PALETTE['accent']}; font-size: 0.85rem; font-weight: 600;
@@ -55,6 +72,13 @@ def inject_global_css():
         border: 1px solid rgba(255,255,255,0.06);
         border-radius: 12px;
         padding: 18px 20px;
+        animation: pm-fadein 0.35s ease;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }}
+    .pm-kpi:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+        border-color: {PALETTE['accent']}55;
     }}
     .pm-kpi-label {{ color: {PALETTE['muted']}; font-size: 0.78rem; font-weight: 600;
                      letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }}
@@ -69,6 +93,10 @@ def inject_global_css():
         background: {PALETTE['surface']} !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
         border-radius: 14px !important;
+        transition: border-color 0.18s ease;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+        border-color: rgba(255,255,255,0.14) !important;
     }}
     div[data-testid="stVerticalBlockBorderWrapper"] > div {{ background: transparent !important; }}
 
@@ -85,6 +113,12 @@ def inject_global_css():
     .pm-risk-card {{
         border-radius: 14px; padding: 22px 24px; text-align: center;
         border: 1px solid rgba(255,255,255,0.06);
+        animation: pm-fadein 0.35s ease;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }}
+    .pm-risk-card:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.35);
     }}
     .pm-risk-label {{ color: {PALETTE['muted']}; font-size: 0.8rem; font-weight: 600;
                       letter-spacing: 0.05em; text-transform: uppercase; }}
@@ -111,6 +145,49 @@ def inject_global_css():
     .pm-nav-brand-sub {{ color: {PALETTE['muted']}; font-size: 0.72rem; margin-bottom: 18px; }}
     .pm-sidebar-footer {{ color: {PALETTE['muted']}; font-size: 0.72rem; line-height: 1.5;
                           margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); }}
+
+    /* ---- Sidebar nav (re-skin the bare st.radio into a real nav menu) ---- */
+    section[data-testid="stSidebar"] div[role="radiogroup"] {{ gap: 1px; }}
+    section[data-testid="stSidebar"] div[role="radiogroup"] label {{
+        padding: 9px 12px; border-radius: 9px; width: 100%;
+        transition: background 0.15s ease, color 0.15s ease;
+    }}
+    section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {{
+        background: {PALETTE['accent']}14;
+    }}
+    section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {{
+        background: {PALETTE['accent']}26;
+        box-shadow: inset 3px 0 0 {PALETTE['accent']};
+        font-weight: 600;
+    }}
+    section[data-testid="stSidebar"] input[type="radio"] {{ accent-color: {PALETTE['accent']}; }}
+
+    /* ---- Buttons ---- */
+    div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button,
+    div[data-testid="stDownloadButton"] button {{
+        border-radius: 10px !important;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    }}
+    div[data-testid="stButton"] button:hover, div[data-testid="stFormSubmitButton"] button:hover,
+    div[data-testid="stDownloadButton"] button:hover {{
+        transform: translateY(-1px);
+    }}
+    button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover {{
+        box-shadow: 0 4px 16px {PALETTE['accent']}55;
+    }}
+
+    /* ---- Re-skin native widgets to match the custom card system ---- */
+    div[data-testid="stMetric"] {{
+        background: {PALETTE['surface']};
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 14px 18px 10px 18px;
+    }}
+    div[data-testid="stAlert"] {{ border-radius: 12px; }}
+    div[data-testid="stDataFrame"] {{
+        border-radius: 12px; overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.06);
+    }}
 
     /* ---- Footer ---- */
     .pm-footer {{
