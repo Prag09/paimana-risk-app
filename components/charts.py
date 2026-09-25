@@ -9,15 +9,14 @@ import plotly.graph_objects as go
 import streamlit as st
 from components.styles import PALETTE, style_plotly
 
-INDIA_GEOJSON_PATH = "data/india_states.geojson"
+INDIA_GEOJSON_PATH = "data/india_states_lgd2024.geojson"
 NON_STATE_LABELS = {"Offshore", "PAN India"}
+# Source: datta07/INDIAN-SHAPEFILES (MIT license), INDIA/INDIA_STATES.geojson,
+# carries LGD (Local Government Directory) state codes. State names live in
+# the STNAME_SH property (title case, e.g. "Jammu & Kashmir", "Ladakh" as its
+# own UT) - matched exactly against every state name in our own project data.
+GEOJSON_STATE_KEY = "STNAME_SH"
 
-# The bundled GeoJSON (a common open-source India states dataset) draws Jammu &
-# Kashmir / Ladakh along the Line of Control rather than India's officially
-# claimed boundary - true of essentially all freely-republishable India
-# boundary data, since Survey of India's exact mandated boundary is not open
-# data. INDIA_MAP_DISCLAIMER below is shown under the map, matching standard
-# practice for Indian apps/dashboards using third-party map data.
 INDIA_MAP_DISCLAIMER = ("Map boundaries are indicative, sourced from open GIS data, and do not "
                          "necessarily represent authentic international boundaries.")
 
@@ -51,7 +50,7 @@ def load_india_geojson():
 @st.cache_data
 def all_india_state_names(_geojson=None):
     geojson = _geojson or load_india_geojson()
-    return [feat["properties"]["ST_NM"] for feat in geojson["features"]]
+    return [feat["properties"][GEOJSON_STATE_KEY] for feat in geojson["features"]]
 
 
 @st.cache_data
@@ -61,7 +60,7 @@ def state_shapes(_geojson=None):
     geojson = _geojson or load_india_geojson()
     shapes = {}
     for feat in geojson["features"]:
-        name = feat["properties"]["ST_NM"]
+        name = feat["properties"][GEOJSON_STATE_KEY]
         ring = _largest_ring(feat["geometry"])
         simplified = ring[::max(1, len(ring) // 150)]
         lons = [pt[0] for pt in ring]
@@ -106,7 +105,7 @@ def india_risk_map(df, cost_threshold_pct=10):
         geojson=geojson,
         locations=state_summary.index,
         z=state_summary["avg_overrun"],
-        featureidkey="properties.ST_NM",
+        featureidkey=f"properties.{GEOJSON_STATE_KEY}",
         colorscale=[[0, PALETTE["success"]], [0.5, PALETTE["warning"]], [1, PALETTE["danger"]]],
         marker_line_color="rgba(255,255,255,0.35)",
         marker_line_width=0.8,
@@ -142,9 +141,15 @@ def india_risk_map(df, cost_threshold_pct=10):
     fig.update_geos(
         scope="asia", fitbounds="locations", visible=False,
         bgcolor="rgba(0,0,0,0)",
-        landcolor=PALETTE["surface2"],
-        subunitcolor="rgba(255,255,255,0.10)",
+        # Plotly's built-in basemap (land/country/coastline/frame layers) draws
+        # its own de facto international borders underneath our choropleth -
+        # explicitly disabling every one of them so only our own GeoJSON
+        # shapes (which carry the boundary we've vetted) are ever visible.
+        showland=False,
         showcountries=False,
+        showcoastlines=False,
+        showframe=False,
+        showsubunits=False,
     )
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
