@@ -55,7 +55,7 @@ if page == "Overview":
             ("Data as of", latest_month_display),
             ("Projects", f"{len(df):,}"),
             ("States/UTs", f"{real_states_covered}"),
-            ("High risk", f"{high_risk_pct:.0f}%"),
+            ("Cost overrun >10%", f"{high_risk_pct:.0f}%"),
         ],
     )
     st.write("")
@@ -64,8 +64,14 @@ if page == "Overview":
         ("Projects Analysed", f"{len(df):,}"),
         ("States/UTs Covered", f"{real_states_covered}"),
         ("Portfolio Value", f"₹{total_value/1000:,.1f}k Cr"),
-        ("High Risk Projects", f"{high_risk_pct:.0f}%"),
+        ("High Cost Overrun", f"{high_risk_pct:.0f}%"),
     ])
+    st.caption(
+        f"\"High cost overrun\" is the share of all {len(df)} projects (complete or ongoing) whose "
+        f"*actual, already-recorded* cost overrun exceeds {COST_THRESHOLD_PCT}% - a historical rate, "
+        "not a prediction. For the model's *predicted* risk on currently ongoing projects, see Early Warning: "
+        "the two use different definitions and won't match."
+    )
     st.write("")
 
     col1, col2 = st.columns([1, 1.3])
@@ -278,8 +284,14 @@ elif page == "Early Warning":
     kpi_row([
         ("Ongoing Projects Tracked", f"{len(ongoing)}"),
         ("Flagged At This Threshold", f"{len(flagged)}"),
-        ("Of Which HIGH Risk", f"{int((flagged['overall_risk_score'] >= 0.5).sum()) if len(flagged) else 0}"),
+        ("HIGH Risk (of flagged)", f"{int((flagged['overall_risk_score'] >= 0.5).sum()) if len(flagged) else 0}"),
     ])
+    st.caption(
+        f"Risk here is the model's *predicted* probability of exceeding the cost or schedule threshold, "
+        f"scored only on the {len(ongoing)} projects still under {ONGOING_PROGRESS_CUTOFF}% progress - a "
+        "different basis from Overview's historical cost-overrun rate across all projects (complete or "
+        "ongoing). The two figures measure different things and aren't meant to match."
+    )
 
     with st.container(border=True):
         section_header("Flagged projects", "Sorted by overall risk score, highest first")
