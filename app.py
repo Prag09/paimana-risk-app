@@ -54,7 +54,7 @@ if page == "Overview":
         [
             ("Data as of", latest_month_display),
             ("Projects", f"{len(df):,}"),
-            ("States", f"{real_states_covered}"),
+            ("States/UTs", f"{real_states_covered}"),
             ("High risk", f"{high_risk_pct:.0f}%"),
         ],
     )
@@ -62,7 +62,7 @@ if page == "Overview":
 
     kpi_row([
         ("Projects Analysed", f"{len(df):,}"),
-        ("States Covered", f"{real_states_covered}"),
+        ("States/UTs Covered", f"{real_states_covered}"),
         ("Portfolio Value", f"₹{total_value/1000:,.1f}k Cr"),
         ("High Risk Projects", f"{high_risk_pct:.0f}%"),
     ])
