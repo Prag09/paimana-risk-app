@@ -9,10 +9,10 @@ original single-file app. This file is UI orchestration only.
 import pandas as pd
 import streamlit as st
 
-from components.styles import inject_global_css, PALETTE
+from components.styles import inject_global_css, PALETTE, cost_overrun_tier
 from components.cards import (
     section_header, kpi_row, risk_card, risk_gauge, factor_bars,
-    empty_state, styled_dataframe,
+    empty_state, styled_dataframe, status_strip,
 )
 from components.charts import (
     risk_distribution_donut, cost_overrun_scatter, time_overrun_scatter,
@@ -37,21 +37,6 @@ full_df = pd.concat([df, st.session_state.added_rows], ignore_index=True) if len
 page = render_sidebar(len(df), n_months)
 
 # ============================================================
-# HERO (shown on every page, lightweight)
-# ============================================================
-st.markdown(f"""
-<div class="pm-hero">
-  <div>
-    <div class="pm-hero-title">PAIMANA</div>
-    <div class="pm-hero-sub">Infrastructure Risk Intelligence — AI-assisted risk assessment for infrastructure projects</div>
-    <div class="pm-hero-tag">PREDICT · EXPLAIN · MONITOR</div>
-  </div>
-  <div class="pm-status"><span class="pm-status-dot"></span> SYSTEM ONLINE</div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ============================================================
 # PAGE: OVERVIEW — "What is happening?"
 # ============================================================
 if page == "Overview":
@@ -61,6 +46,20 @@ if page == "Overview":
     # states/UTs - excluded here so the KPI reflects genuine geographic coverage.
     NON_STATE_LABELS = {"Offshore", "PAN India"}
     real_states_covered = df.loc[~df["state"].isin(NON_STATE_LABELS), "state"].nunique()
+    latest_month_display = pd.to_datetime(df["report_month"].max(), format="%Y-%m").strftime("%b %Y")
+
+    status_strip(
+        "PAIMANA",
+        "Infrastructure risk intelligence for MoSPI project reports",
+        [
+            ("Data as of", latest_month_display),
+            ("Projects", f"{len(df):,}"),
+            ("States", f"{real_states_covered}"),
+            ("High risk", f"{high_risk_pct:.0f}%"),
+        ],
+    )
+    st.write("")
+
     kpi_row([
         ("Projects Analysed", f"{len(df):,}"),
         ("States Covered", f"{real_states_covered}"),
@@ -110,10 +109,14 @@ if page == "Overview":
     with col4:
         with st.container(border=True):
             section_header("Recent Risk Signals", "Highest cost-overrun projects currently on record")
-            signals = df.sort_values("cost_overrun_pct", ascending=False).head(6)
+            signals = df.sort_values("cost_overrun_pct", ascending=False).head(6).copy()
+            def _risk_tag(pct):
+                label, _color, glyph = cost_overrun_tier(pct, COST_THRESHOLD_PCT)
+                return f"{glyph} {label}"
+            signals["risk_tag"] = signals["cost_overrun_pct"].apply(_risk_tag)
             styled_dataframe(
-                signals[["project_name", "state", "cost_overrun_pct"]],
-                rename={"project_name": "Project", "state": "State", "cost_overrun_pct": "Overrun"},
+                signals[["project_name", "state", "risk_tag", "cost_overrun_pct"]],
+                rename={"project_name": "Project", "state": "State", "risk_tag": "Risk", "cost_overrun_pct": "Overrun"},
                 pct_cols=["cost_overrun_pct"],
             )
 

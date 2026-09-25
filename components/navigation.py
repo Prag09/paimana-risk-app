@@ -2,6 +2,8 @@
 
 import streamlit as st
 
+from components.styles import PALETTE
+
 PAGES = [
     "Overview",
     "Risk Assessment",
@@ -40,7 +42,7 @@ def render_sidebar(n_projects, n_months):
         st.markdown(f"""
         <div class="pm-sidebar-footer">
             <b>SYSTEM STATUS</b><br>
-            <span style="color:#32C48D;">●</span> Online<br><br>
+            <span style="color:{PALETTE['success']};">●</span> Online<br><br>
             <b>MODEL</b><br>XGBoost · 50 rounds<br><br>
             <b>DATA</b><br>{n_projects} projects · {n_months} month(s)<br><br>
             Team Void Pointers<br>SIH 2026

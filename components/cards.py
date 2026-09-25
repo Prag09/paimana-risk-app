@@ -5,6 +5,23 @@ import plotly.graph_objects as go
 from components.styles import PALETTE, risk_tier, style_plotly
 
 
+def status_strip(title, subtitle, items):
+    """Compact instrument-style readout bar. items: list of (label, value)
+    tuples, labels in sentence case."""
+    readout_html = "".join(
+        f'<div class="pm-readout-item"><div class="pm-readout-label">{label}</div>'
+        f'<div class="pm-readout-value">{value}</div></div>'
+        for label, value in items
+    )
+    st.markdown(f"""
+    <div class="pm-statusbar">
+        <div class="pm-statusbar-title">{title}</div>
+        <div class="pm-statusbar-sub">{subtitle}</div>
+        <div class="pm-statusbar-readout">{readout_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def section_header(title, subtitle=None):
     st.markdown(f'<div class="pm-section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
