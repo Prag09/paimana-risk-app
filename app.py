@@ -639,6 +639,6 @@ st.markdown(f"""
 <div class="pm-footer">
     <b>PAIMANA</b> — Infrastructure Risk Intelligence<br>
     AI-assisted decision support for infrastructure project monitoring<br><br>
-    Developed by Team Null Pointers · Smart India Hackathon 2026
+    Developed by Team Void Pointers · Smart India Hackathon 2026
 </div>
 """, unsafe_allow_html=True)

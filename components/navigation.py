@@ -43,7 +43,7 @@ def render_sidebar(n_projects, n_months):
             <span style="color:#32C48D;">●</span> Online<br><br>
             <b>MODEL</b><br>XGBoost · 50 rounds<br><br>
             <b>DATA</b><br>{n_projects} projects · {n_months} month(s)<br><br>
-            Team Null Pointers<br>SIH 2026
+            Team Void Pointers<br>SIH 2026
         </div>
         """, unsafe_allow_html=True)
 

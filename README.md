@@ -2,7 +2,7 @@
 
 **AI-assisted early warning for cost and schedule overruns in India's infrastructure projects.**
 
-Built for **SIH26103** · Smart India Hackathon 2026 · Ministry of Statistics and Programme Implementation (MoSPI) · Team Null Pointers
+Built for **SIH26103** · Smart India Hackathon 2026 · Ministry of Statistics and Programme Implementation (MoSPI) · Team Void Pointers
 
 🔗 **Live app**: [paimana-risk-null-pointers.streamlit.app](https://paimana-risk-null-pointers.streamlit.app)
 
@@ -115,4 +115,4 @@ paimana-risk-app/
 
 ## Team
 
-**Team Null Pointers** — SIH26103, Smart India Hackathon 2026
+**Team Void Pointers** — SIH26103, Smart India Hackathon 2026
