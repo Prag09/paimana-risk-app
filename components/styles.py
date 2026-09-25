@@ -232,7 +232,7 @@ def inject_global_css():
     }}
     div[data-testid="stAlert"] {{ border-radius: 8px; }}
     div[data-testid="stDataFrame"] {{
-        border-radius: 8px; overflow: hidden;
+        border-radius: 8px;
         border: 1px solid rgba(255,255,255,0.08);
     }}
 
