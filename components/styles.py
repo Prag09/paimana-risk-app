@@ -62,11 +62,16 @@ def inject_global_css():
 
     .stApp {{ background: {PALETTE['bg']}; font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
     code, pre, kbd, samp {{ font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace; }}
-    .block-container {{ max-width: 1400px; padding-top: 1.5rem; padding-bottom: 4rem; }}
+    .block-container {{ max-width: 1400px; padding-top: 3.5rem; padding-bottom: 4rem; }}
 
     /* ---- Hide default streamlit chrome that breaks the premium feel ---- */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
+    /* Streamlit's fixed header bar sits over the top of the content; give it
+       a solid background so it can't visually cut into page titles instead
+       of just sitting above them (the block-container padding above is what
+       actually reserves the clearance). */
+    header[data-testid="stHeader"] {{ background: {PALETTE['bg']}; }}
 
     h1, h2, h3, h4, p, span, div {{ color: {PALETTE['text']}; }}
 
