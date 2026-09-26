@@ -6,3 +6,4 @@ shap
 plotly
 streamlit
 anthropic
+groq
