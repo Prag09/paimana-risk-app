@@ -16,7 +16,7 @@ from components.cards import (
 )
 from components.charts import (
     risk_distribution_donut, cost_overrun_scatter, time_overrun_scatter,
-    ministry_box, region_bar, seasonal_bar, histogram, india_risk_map, INDIA_MAP_DISCLAIMER,
+    ministry_box, region_bar, seasonal_bar, histogram, state_ranking_bar,
 )
 from components.navigation import render_sidebar
 from components.data_model import load_and_train, predict, parse_my, COST_THRESHOLD_PCT, TIME_THRESHOLD_MONTHS
@@ -464,12 +464,10 @@ elif page == "Regional Intelligence":
     st.write("")
 
     with st.container(border=True):
-        section_header("Risk Map of India", "State shading = average cost overrun · dots = individual projects, "
-                       "clustered near each state and colored by that project's own overrun tier")
-        st.plotly_chart(india_risk_map(df, COST_THRESHOLD_PCT), width='stretch', config={"displayModeBar": False})
-        st.caption("Dot positions are sampled within the state boundary for readability — they are not exact project coordinates.")
-        st.caption(f"⚠️ {INDIA_MAP_DISCLAIMER}")
-        st.caption("State boundaries: [Bharatlas](https://bharatlas.com/view/lgd_states), LGD 2024 (CC0-1.0 / CC-BY-4.0).")
+        section_header("States Ranked by Cost Overrun",
+                       "Top 15 states/UTs by average cost overrun · project count shown beside each bar")
+        st.plotly_chart(state_ranking_bar(df), width='stretch', config={"displayModeBar": False})
+        st.caption("Low project counts make an average less reliable — read the count alongside the bar.")
 
     with st.container(border=True):
         section_header("Risk Exposure by Region", "Average cost overrun across all states, ranked")
