@@ -6,4 +6,3 @@ shap
 plotly
 streamlit
 anthropic
-shapely
