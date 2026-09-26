@@ -370,9 +370,9 @@ elif page == "Ask PAIMANA":
 
     with st.container(border=True):
         if not GEMINI_AVAILABLE:
-            st.warning("The `google-genai` package isn't installed. Add it to requirements.txt to enable this page.")
+            st.warning("The `anthropic` package isn't installed. Add it to requirements.txt to enable this page.")
         elif not get_gemini_key():
-            st.warning("No Gemini API key configured. Add `GEMINI_API_KEY` in `.streamlit/secrets.toml` "
+            st.warning("No Claude API key configured. Add `ANTHROPIC_API_KEY` in `.streamlit/secrets.toml` "
                        "(and in Streamlit Cloud's app Settings → Secrets for the live deployment).")
         else:
             preset = st.selectbox("Quick questions", [

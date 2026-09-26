@@ -21,7 +21,7 @@ MoSPI's [PAIMANA portal](https://paimana-proj.mospi.gov.in) tracks India's large
 | **Overview** | What's happening across the whole portfolio right now? |
 | **Risk Assessment** | How risky is this specific project? (cost risk, schedule risk, expected overrun with confidence intervals) |
 | **Early Warning** | Which *real, currently ongoing* projects should be flagged today? |
-| **Ask PAIMANA** | Natural-language Q&A grounded in the real dataset (Gemini-powered) |
+| **Ask PAIMANA** | Natural-language Q&A grounded in the real dataset (Claude-powered) |
 | **Search Projects** | Find any project by name, region, ministry, cost, or reporting month |
 | **Regional Intelligence** | Where is risk geographically concentrated? |
 | **Trends** | How does risk relate to progress, ministry, and season? |
@@ -58,7 +58,7 @@ GitHub → Streamlit Community Cloud (auto-redeploys on push)
 
 - **Data**: `pdftotext`, regex-based extraction, `pandas`
 - **ML**: `xgboost` (classification + regression), `scikit-learn` (cross-validation, Logistic Regression baseline), `shap` (explainability), custom split conformal prediction for confidence intervals
-- **AI assistant**: Google Gemini API
+- **AI assistant**: Anthropic Claude API (`anthropic` SDK)
 - **Frontend**: `streamlit`, `plotly`
 - **Deployment**: GitHub → Streamlit Community Cloud
 
@@ -104,7 +104,7 @@ paimana-risk-app/
 │   └── config.toml           # Theme
 ├── components/
 │   ├── data_model.py         # All ML models + predict()
-│   ├── llm.py                # Gemini Q&A / plain-language explanations
+│   ├── llm.py                # Claude Q&A / plain-language explanations
 │   ├── styles.py             # Palette + global CSS
 │   ├── cards.py               # Reusable UI components
 │   ├── charts.py              # Themed Plotly builders
