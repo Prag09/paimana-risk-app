@@ -469,7 +469,7 @@ elif page == "Regional Intelligence":
         st.plotly_chart(india_risk_map(df, COST_THRESHOLD_PCT), width='stretch', config={"displayModeBar": False})
         st.caption("Dot positions are sampled within the state boundary for readability — they are not exact project coordinates.")
         st.caption(f"⚠️ {INDIA_MAP_DISCLAIMER}")
-        st.caption("State boundaries: [datta07/INDIAN-SHAPEFILES](https://github.com/datta07/INDIAN-SHAPEFILES) (MIT license).")
+        st.caption("State boundaries: [Bharatlas](https://bharatlas.com/view/lgd_states), LGD 2024 (CC0-1.0 / CC-BY-4.0).")
 
     with st.container(border=True):
         section_header("Risk Exposure by Region", "Average cost overrun across all states, ranked")

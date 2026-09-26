@@ -11,10 +11,15 @@ from components.styles import PALETTE, style_plotly
 
 INDIA_GEOJSON_PATH = "data/india_states_lgd2024.geojson"
 NON_STATE_LABELS = {"Offshore", "PAN India"}
-# Source: datta07/INDIAN-SHAPEFILES (MIT license), INDIA/INDIA_STATES.geojson,
-# carries LGD (Local Government Directory) state codes. State names live in
-# the STNAME_SH property (title case, e.g. "Jammu & Kashmir", "Ladakh" as its
-# own UT) - matched exactly against every state name in our own project data.
+# Source: Bharatlas (bharatlas.com/view/lgd_states), LGD 2024 states/UTs layer,
+# built from the Local Government Directory - the authoritative Indian
+# government source for administrative boundaries. CC0-1.0 / CC-BY-4.0.
+# Ring winding reversed to clockwise-exterior (Plotly's geo renderer wants the
+# opposite of the GeoJSON RFC 7946 default) and geometry simplified
+# (shapely .simplify(0.005), verified against known reference points - see
+# scripts/check_map.py) from the ~25MB source download to ~0.9MB. State names
+# live in the STNAME_SH property, title-cased here to match our project data
+# exactly (source file has them upper-case, e.g. "JAMMU & KASHMIR").
 GEOJSON_STATE_KEY = "STNAME_SH"
 
 INDIA_MAP_DISCLAIMER = ("Map boundaries are indicative, sourced from open GIS data, and do not "
