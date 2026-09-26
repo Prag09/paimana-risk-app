@@ -41,7 +41,6 @@ def _point_in_ring(lon, lat, ring):
     return inside
 
 
-@st.cache_data
 def load_india_geojson():
     with open(INDIA_GEOJSON_PATH, encoding="utf-8") as f:
         return json.load(f)
