@@ -4,7 +4,7 @@
 
 Built for **SIH26103** · Smart India Hackathon 2026 · Ministry of Statistics and Programme Implementation (MoSPI) · Team Void Pointers
 
-🔗 **Live app**: [paimana-risk-null-pointers.streamlit.app](https://paimana-risk-null-pointers.streamlit.app)
+🔗 **Live app**: hosted on Render (URL to be updated once deployed — see [Deployment](#deployment) below)
 
 ---
 
@@ -51,7 +51,7 @@ app.py + components/{styles,cards,charts,navigation,llm}.py
   → Streamlit dashboard, 9 pages
         │
         ▼
-GitHub → Streamlit Community Cloud (auto-redeploys on push)
+GitHub → Render (auto-redeploys on push)
 ```
 
 ## Tech stack
@@ -60,7 +60,7 @@ GitHub → Streamlit Community Cloud (auto-redeploys on push)
 - **ML**: `xgboost` (classification + regression), `scikit-learn` (cross-validation, Logistic Regression baseline), `shap` (explainability), custom split conformal prediction for confidence intervals
 - **AI assistant**: Anthropic Claude API (`anthropic` SDK)
 - **Frontend**: `streamlit`, `plotly`
-- **Deployment**: GitHub → Streamlit Community Cloud
+- **Deployment**: GitHub → Render (see [Deployment](#deployment))
 
 ## Key design decisions
 
@@ -92,6 +92,27 @@ To add a new month's data:
 ```bash
 python ingest_report.py path/to/FlashReport.pdf YYYY-MM
 ```
+
+## Deployment
+
+Hosted on [Render](https://render.com) as a Python web service, defined by
+[`render.yaml`](render.yaml) (Render Blueprint):
+
+1. Push this repo to GitHub (already done).
+2. On Render: **New → Blueprint**, connect the repo — it reads `render.yaml`
+   and creates the service automatically.
+3. In the service's **Environment** tab, set `GROQ_API_KEY` and/or
+   `ANTHROPIC_API_KEY` (these are the same keys used locally via
+   `.streamlit/secrets.toml` — see `components/llm.py`).
+4. Render builds with `pip install -r requirements.txt` and starts with
+   `streamlit run app.py --server.port=$PORT --server.address=0.0.0.0`.
+   Every push to `main` auto-redeploys.
+
+Notes:
+- Free-tier Render services spin down after inactivity and cold-start on the
+  next request (~30–60s) — expect a slower first load after idle periods.
+- `Add Project` entries stay session-only; there's no persistent database on
+  the free tier.
 
 ## Project structure
 

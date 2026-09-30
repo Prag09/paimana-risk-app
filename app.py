@@ -373,7 +373,7 @@ elif page == "Ask PAIMANA":
             st.warning("The `anthropic` package isn't installed. Add it to requirements.txt to enable this page.")
         elif not get_gemini_key():
             st.warning("No Claude API key configured. Add `ANTHROPIC_API_KEY` in `.streamlit/secrets.toml` "
-                       "(and in Streamlit Cloud's app Settings → Secrets for the live deployment).")
+                       "locally (and as an environment variable in Render's dashboard for the live deployment).")
         else:
             preset = st.selectbox("Quick questions", [
                 "Custom question...",
@@ -544,7 +544,7 @@ elif page == "Trends":
 # ============================================================
 elif page == "Add Project":
     section_header("Add Project", "Add a project to this session's dataset")
-    st.info("⚠️ Additions here are session-only on Streamlit Cloud's free tier — they reset on app restart. "
+    st.info("⚠️ Additions here are session-only on the free hosting tier — they reset on app restart. "
             "Download your additions below and fold them into projects_master.csv permanently if needed.")
 
     with st.container(border=True):
