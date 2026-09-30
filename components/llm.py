@@ -6,8 +6,8 @@ Provider order:
   3. Friendly fallback message      - never shows a raw error to the viewer
 
 Key lookup order for each provider: environment variable -> st.secrets -> none.
-Keys live in .streamlit/secrets.toml locally (gitignored) and in
-Streamlit Cloud -> App settings -> Secrets for the live deployment.
+Keys live in .streamlit/secrets.toml locally (gitignored) and as
+environment variables in Render's dashboard for the live deployment.
 """
 
 import os
@@ -148,8 +148,8 @@ def call_llm(prompt, context="", model=None):
 
     if not get_active_key():
         return ("AI assistant not configured. Add `GROQ_API_KEY` to "
-                "`.streamlit/secrets.toml` locally, and to Streamlit Cloud "
-                "App settings -> Secrets for the live site.")
+                "`.streamlit/secrets.toml` locally, and as an environment "
+                "variable in Render's dashboard for the live site.")
 
     # 1) Groq: main model, then the smaller model if the main one is busy.
     if GROQ_AVAILABLE and get_groq_key():
@@ -160,8 +160,13 @@ def call_llm(prompt, context="", model=None):
                     return answer
             except groq.AuthenticationError:
                 return "AI assistant error: the Groq API key is invalid. Check GROQ_API_KEY in Secrets."
-            except Exception:
+            except Exception as e:
+                # Printed to the terminal / Render logs, never shown to viewers.
+                print(f"[PAIMANA LLM] Groq {groq_model} failed: {type(e).__name__}: {e}", flush=True)
                 time.sleep(1)  # brief pause, then try the next model
+    elif get_groq_key() and not GROQ_AVAILABLE:
+        print("[PAIMANA LLM] GROQ_API_KEY is set but the 'groq' package is not installed. "
+              "Run: pip install groq (and add 'groq' to requirements.txt).", flush=True)
 
     # 2) Claude, only if a key is configured.
     if ANTHROPIC_AVAILABLE and get_anthropic_key():
@@ -169,8 +174,8 @@ def call_llm(prompt, context="", model=None):
             answer = _call_claude(prompt, system_prompt, model or LLM_MODEL)
             if answer:
                 return answer
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[PAIMANA LLM] Claude fallback failed: {type(e).__name__}: {e}", flush=True)
 
     # 3) Never show a stack trace to the judges.
     return FALLBACK_MESSAGE
