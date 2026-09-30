@@ -7,7 +7,7 @@ Provider order:
 
 Key lookup order for each provider: environment variable -> st.secrets -> none.
 Keys live in .streamlit/secrets.toml locally (gitignored) and as
-environment variables in Render's dashboard for the live deployment.
+environment variables / app secrets on whatever host runs the live deployment.
 """
 
 import os
@@ -149,7 +149,7 @@ def call_llm(prompt, context="", model=None):
     if not get_active_key():
         return ("AI assistant not configured. Add `GROQ_API_KEY` to "
                 "`.streamlit/secrets.toml` locally, and as an environment "
-                "variable in Render's dashboard for the live site.")
+                "variable / app secret on the live site.")
 
     # 1) Groq: main model, then the smaller model if the main one is busy.
     if GROQ_AVAILABLE and get_groq_key():

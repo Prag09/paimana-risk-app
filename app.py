@@ -373,7 +373,7 @@ elif page == "Ask PAIMANA":
             st.warning("The `anthropic` package isn't installed. Add it to requirements.txt to enable this page.")
         elif not get_gemini_key():
             st.warning("No Claude API key configured. Add `ANTHROPIC_API_KEY` in `.streamlit/secrets.toml` "
-                       "locally (and as an environment variable in Render's dashboard for the live deployment).")
+                       "locally (and as an environment variable / app secret on the live deployment).")
         else:
             preset = st.selectbox("Quick questions", [
                 "Custom question...",
